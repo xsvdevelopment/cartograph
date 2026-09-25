@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window may save a map and add the agent rule to a CLAUDE.md, both through a native dialog the user confirms.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:default", "allow-save-map", "allow-save-rule"]
+}
