@@ -1,5 +1,79 @@
-import { basename } from "./ignore.ts";
+import { basename, extname } from "./ignore.ts";
 import type { ListedFile, TreeNode } from "./types.ts";
+
+/** A folder with more assets of one kind than this gets one summary line instead of one per file. */
+const IMAGE_GROUP_MIN = 9;
+
+/** Asset kinds worth summarizing, and the plural used in the summary. */
+const GROUPED: Record<string, string> = { Image: "images", "3D model": "models" };
+
+export type ImageGroup = {
+  dir: string;
+  language: string;
+  count: number;
+  bytes: number;
+  exts: string[];
+};
+
+function dirOf(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
+function groupKey(f: ListedFile): string | undefined {
+  return GROUPED[f.language] ? `${dirOf(f.path)}\u0000${f.language}` : undefined;
+}
+
+/** Folders full of images or models, which the map summarizes instead of listing. */
+export function imageGroups(files: ListedFile[]): Map<string, ImageGroup> {
+  const byKey = new Map<string, ImageGroup>();
+  for (const f of files) {
+    const key = groupKey(f);
+    if (!key) continue;
+    const g = byKey.get(key) ?? {
+      dir: dirOf(f.path),
+      language: f.language,
+      count: 0,
+      bytes: 0,
+      exts: [],
+    };
+    g.count += 1;
+    g.bytes += f.size;
+    const ext = extname(f.path);
+    if (ext && !g.exts.includes(ext)) g.exts.push(ext);
+    byKey.set(key, g);
+  }
+  for (const [key, g] of byKey) if (g.count < IMAGE_GROUP_MIN) byKey.delete(key);
+  return byKey;
+}
+
+export function imageGroupLabel(g: ImageGroup): string {
+  return `${g.count} ${GROUPED[g.language]} (${g.exts.sort().join(", ")})`;
+}
+
+/**
+ * Files in index order, with each asset-heavy folder's images or models
+ * replaced by one summary entry where the first of them would have been.
+ */
+export function indexEntries(files: ListedFile[]): (ListedFile | ImageGroup)[] {
+  const groups = imageGroups(files);
+  const out: (ListedFile | ImageGroup)[] = [];
+  const emitted = new Set<string>();
+  for (const f of files) {
+    const key = groupKey(f);
+    const g = key ? groups.get(key) : undefined;
+    if (!g || !key) {
+      out.push(f);
+    } else if (!emitted.has(key)) {
+      emitted.add(key);
+      out.push(g);
+    }
+  }
+  return out;
+}
+
+export function isImageGroup(e: ListedFile | ImageGroup): e is ImageGroup {
+  return "exts" in e;
+}
 
 export function buildTree(
   files: ListedFile[],
@@ -35,11 +109,21 @@ export function buildTree(
     return node;
   };
 
-  for (const file of files) {
-    const dir = file.path.includes("/")
-      ? file.path.slice(0, file.path.lastIndexOf("/"))
-      : "";
-    const parent = ensureDir(dir);
+  for (const entry of indexEntries(files)) {
+    if (isImageGroup(entry)) {
+      const parent = ensureDir(entry.dir);
+      parent.children = parent.children ?? [];
+      parent.children.push({
+        name: `[${imageGroupLabel(entry)}]`,
+        path: `${entry.dir}/*${entry.language}*`,
+        type: "file",
+        language: entry.language,
+        size: entry.bytes,
+      });
+      continue;
+    }
+    const file = entry;
+    const parent = ensureDir(dirOf(file.path));
     parent.children = parent.children ?? [];
     parent.children.push({
       name: basename(file.path),

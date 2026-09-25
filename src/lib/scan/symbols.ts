@@ -2,10 +2,13 @@ import { extname } from "./ignore.ts";
 
 const MAX_SYMBOLS = 300;
 
-export function extractSymbols(path: string, content: string): string[] {
-  const ext = extname(path);
-  const lang = ext;
+/** Extension to use for a file with none, going by the language its `#!` line named. */
+const SCRIPT_EXT: Record<string, string> = { Python: "py", JavaScript: "js", Ruby: "rb", Shell: "sh" };
+
+export function extractSymbols(path: string, content: string, language?: string): string[] {
+  const lang = extname(path) || SCRIPT_EXT[language ?? ""] || "";
   try {
+    if (["sh", "bash", "zsh"].includes(lang)) return shellSymbols(content);
     if (["ts", "tsx", "js", "jsx", "mjs", "cjs", "mts", "cts"].includes(lang)) {
       return jsSymbols(content);
     }
@@ -230,6 +233,14 @@ function csharpSymbols(src: string): string[] {
     if (name === "get" || name === "set" || name === "new") continue;
     found.push(name);
   }
+  return uniq(found);
+}
+
+function shellSymbols(src: string): string[] {
+  const found: string[] = [];
+  const re = /^[ \t]*(?:function\s+([A-Za-z_][\w:-]*)|([A-Za-z_][\w:-]*)\s*\(\s*\))\s*\{?/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) found.push(m[1] || m[2]);
   return uniq(found);
 }
 

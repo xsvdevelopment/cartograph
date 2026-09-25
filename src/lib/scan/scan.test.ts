@@ -275,3 +275,40 @@ test("a dependency table at the very end of the file is still read", () => {
   assert.deepEqual(pubspec.dependencies.map((d) => d.name), ["http", "flutter"]);
   assert.deepEqual(poetry.dependencies.map((d) => d.name), ["rich"]);
 });
+
+test("folders full of images become one line in the tree and index", async () => {
+  const record: Record<string, string> = { "src/game.ts": "export function run() {}\n" };
+  for (let i = 0; i < 12; i++) record[`art/sprites/frame${i}.png`] = "PNG";
+  record["art/logo.png"] = "PNG";
+  const result = await scanProject("g", filesFromRecord("g", record), DEFAULT_SCAN_OPTIONS);
+  assert.ok(result.markdown.includes("art/sprites/ · 12 images (png)"));
+  assert.ok(!result.markdown.includes("frame3.png"));
+  assert.ok(result.markdown.includes("art/logo.png"), "a lone image is still listed");
+  assert.equal(result.stats.listedFiles, 14, "stats still count every file");
+});
+
+test("extensionless scripts are read and indexed by their shebang", async () => {
+  const files = filesFromRecord("s", {
+    "bin/deploy": "#!/usr/bin/env python3\ndef main():\n    pass\n",
+    "bin/setup": "#!/bin/bash\nfunction install_deps {\n  :\n}\ncleanup() {\n  :\n}\n",
+    "VERSION": "1.2.3\n",
+  });
+  const result = await scanProject("s", files, DEFAULT_SCAN_OPTIONS);
+  const byPath = Object.fromEntries(result.files.map((f) => [f.path, f]));
+  assert.equal(byPath["bin/deploy"].language, "Python");
+  assert.deepEqual(byPath["bin/deploy"].symbols, ["main"]);
+  assert.equal(byPath["bin/setup"].language, "Shell");
+  assert.deepEqual(byPath["bin/setup"].symbols, ["install_deps", "cleanup"]);
+  assert.equal(byPath["VERSION"].language, "Text");
+});
+
+test("3D models and logs get real labels, and model folders are grouped", async () => {
+  const record: Record<string, string> = { "game.log": "started\n" };
+  for (let i = 0; i < 10; i++) record[`assets/models/m${i}.glb`] = "glTF";
+  record["assets/source/scene.blend1"] = "BLENDER";
+  const result = await scanProject("a", filesFromRecord("a", record), DEFAULT_SCAN_OPTIONS);
+  assert.ok(result.markdown.includes("assets/models/ · 10 models (glb)"));
+  const byPath = Object.fromEntries(result.files.map((f) => [f.path, f.language]));
+  assert.equal(byPath["assets/source/scene.blend1"], "3D model");
+  assert.equal(byPath["game.log"], "Log");
+});

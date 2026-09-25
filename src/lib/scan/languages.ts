@@ -89,6 +89,8 @@ const EXT_LANG: Record<string, string> = {
   env: "Env",
   prisma: "Prisma",
   lock: "Lockfile",
+  log: "Log",
+  gltf: "glTF",
 };
 
 const BASENAME_LANG: Record<string, string> = {
@@ -119,6 +121,7 @@ export function languageOf(path: string): string {
   const ext = extname(path);
   if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
   if (IMAGE_EXT.has(ext)) return "Image";
+  if (MODEL_EXT.has(ext) || /^blend\d+$/.test(ext)) return "3D model";
   if (base.startsWith(".env")) return "Env";
   if (base.endsWith("file") && !base.includes(".")) return "Config";
   if (!ext && base.startsWith(".")) return "Config";
@@ -126,10 +129,26 @@ export function languageOf(path: string): string {
   return "Other";
 }
 
-const TEXT_BASENAMES = new Set(["license", "copying", "authors", "changelog", "notice", "readme"]);
+const SHEBANG_LANG: [RegExp, string][] = [
+  [/python/, "Python"],
+  [/\b(node|deno|bun)\b/, "JavaScript"],
+  [/\b(bash|sh|zsh|dash|ksh|fish)\b/, "Shell"],
+  [/ruby/, "Ruby"],
+  [/perl/, "Perl"],
+  [/\bphp\b/, "PHP"],
+];
+
+/** The language named by a `#!` line, for scripts with no extension. */
+export function shebangLanguage(content: string | undefined): string | undefined {
+  if (!content?.startsWith("#!")) return undefined;
+  const line = content.slice(0, content.indexOf("\n") >>> 0).toLowerCase();
+  return SHEBANG_LANG.find(([re]) => re.test(line))?.[1] ?? "Shell";
+}
+
+const TEXT_BASENAMES =new Set(["license", "copying", "authors", "changelog", "notice", "readme"]);
 
 export function isProbablyText(path: string, language: string): boolean {
-  if (language === "Image") return false;
+  if (language === "Image" || language === "3D model") return false;
   if (language === "Other") {
     const ext = extname(path);
     if (!ext) {
@@ -155,6 +174,7 @@ export function isProbablyText(path: string, language: string): boolean {
 }
 
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "heic"]);
+const MODEL_EXT = new Set(["glb", "fbx", "blend", "stl", "3ds", "dae", "usdz", "vox"]);
 
 export function roleOf(path: string): string {
   const p = path.toLowerCase();

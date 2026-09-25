@@ -8,7 +8,7 @@ holding the directory tree, the dependency tree, a language breakdown and the fu
 Add one rule to `CLAUDE.md` (or `AGENTS.md`, or a Cursor rule) and the agent searches the map first, then opens the
 one file it needs.
 
-On Cartograph's own source, the default map is about 93% smaller than pasting the code.
+On Cartograph's own source, the default map is over 90% smaller than pasting the code.
 
 ## Install
 
@@ -46,7 +46,8 @@ Rescan whenever the project changes shape. The map is a snapshot, not a live vie
 - Anything listed under **Also skip**, one gitignore-style pattern per line.
 - Secrets (`.env`, `.env.local`, keys, certificates, `.npmrc`) are listed by name so the agent knows they exist.
   Their contents are never read. Templates like `.env.example` are read as normal.
-- Lockfiles, binaries, images and fonts are listed but not read.
+- Lockfiles, binaries, images and fonts are listed but not read. A folder with more than eight images or 3D
+  models gets one summary line, like `sprites/ · 412 images (png)`, instead of one line per file.
 
 ## What it writes
 
@@ -64,7 +65,7 @@ No network access, no telemetry. Fonts are bundled.
 npm (`package.json`, `pnpm-workspace.yaml`), Python (`pyproject.toml`, `requirements*.txt`, `Pipfile`), Cargo, Go,
 Ruby (`Gemfile`), PHP (`composer.json`), Dart (`pubspec.yaml`), Maven, Gradle, Elixir (`mix.exs`) and .NET
 (`.csproj`, `.fsproj`). Symbols are extracted for TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, Ruby, C#,
-F# and Swift.
+F# and Swift, plus shell scripts and extensionless scripts identified by their `#!` line.
 
 ## Development
 

@@ -1,6 +1,7 @@
 import {
   basename,
   buildIgnoreSet,
+  extname,
   collectGitignorePatterns,
   isIgnoredPath,
   isLockfile,
@@ -11,7 +12,7 @@ import {
   stripRootPrefix,
   type IgnoreSet,
 } from "./ignore.ts";
-import { isProbablyText, languageOf } from "./languages.ts";
+import { isProbablyText, languageOf, shebangLanguage } from "./languages.ts";
 import { isManifestPath, parseManifests, workspaceLinks } from "./deps.ts";
 import { countLines, extractSymbols } from "./symbols.ts";
 import { buildTree } from "./tree.ts";
@@ -173,7 +174,9 @@ export async function scanProject(
       : candidates.filter((f) => {
           if (isSecretPath(f.path) || isLockfile(f.path)) return false;
           const lang = languageOf(f.path);
-          return isProbablyText(f.path, lang) || isManifestPath(f.path);
+          // Files with no extension are often scripts (`#!/usr/bin/env python3`),
+          // so read them and let the first line say what they are.
+          return isProbablyText(f.path, lang) || isManifestPath(f.path) || lang === "Other" && !extname(f.path);
         });
 
   // Manifests and READMEs first, so the read cap never costs the dependency tree.
@@ -200,7 +203,10 @@ export async function scanProject(
 
   for (let i = 0; i < candidates.length; i++) {
     const file = candidates[i];
-    const language = languageOf(file.path);
+    let language = languageOf(file.path);
+    if (language === "Other" && !extname(file.path) && file.content != null) {
+      language = shebangLanguage(file.content) ?? (looksBinary(file.content) ? "Other" : "Text");
+    }
     const secret = isSecretPath(file.path);
     const lock = isLockfile(file.path);
     const textish = isProbablyText(file.path, language);
@@ -246,7 +252,7 @@ export async function scanProject(
       kind === "text" &&
       (options.mode === "skeleton" || options.mode === "contents")
     ) {
-      symbols = extractSymbols(file.path, content);
+      symbols = extractSymbols(file.path, content, language);
     }
 
     listedBytes += file.size;

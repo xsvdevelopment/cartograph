@@ -1,6 +1,12 @@
 import { roleOf } from "./languages.ts";
 import { renderDepTree, renderMermaidGraph } from "./deps.ts";
-import { renderTreeAscii, renderTreeCompact } from "./tree.ts";
+import {
+  imageGroupLabel,
+  indexEntries,
+  isImageGroup,
+  renderTreeAscii,
+  renderTreeCompact,
+} from "./tree.ts";
 import { estimateTokens, estimateTokensFromBytes, savingsPercent } from "./tokens.ts";
 import {
   directoryHints,
@@ -136,7 +142,11 @@ function renderFull(result: MarkdownInput): string {
   sections.push("");
   sections.push("path · lang · lines · role · symbols");
   sections.push("");
-  for (const f of result.files) {
+  for (const f of indexEntries(result.files)) {
+    if (isImageGroup(f)) {
+      sections.push(`- ${f.dir || "."}/ · ${imageGroupLabel(f)} · ${fmtBytes(f.bytes)} · asset`);
+      continue;
+    }
     if (f.kind === "skipped") continue;
     const bits = [
       f.path,
@@ -235,7 +245,11 @@ function renderCompact(result: MarkdownInput): string {
   }
   lines.push("");
   lines.push("INDEX");
-  for (const f of result.files) {
+  for (const f of indexEntries(result.files)) {
+    if (isImageGroup(f)) {
+      lines.push(`${f.dir || "."}/ ${imageGroupLabel(f)}`);
+      continue;
+    }
     if (f.kind === "skipped") continue;
     const sym = f.symbols?.length ? " " + f.symbols.join(",") : "";
     const mark =
