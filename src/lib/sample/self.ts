@@ -8,7 +8,7 @@ const modules = import.meta.glob(
     "/src-tauri/src/*.rs",
     "/src-tauri/{Cargo.toml,build.rs,tauri.conf.json}",
     "/src-tauri/capabilities/*.json",
-    "/{package.json,README.md,index.html,vite.config.ts,tsconfig.json,eslint.config.mjs,.gitignore}",
+    "/{package.json,README.md,index.html,vite.config.ts,tsconfig.json,eslint.config.mjs}",
   ],
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
