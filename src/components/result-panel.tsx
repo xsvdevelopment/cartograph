@@ -13,7 +13,7 @@ import { desktopBridge } from "@/lib/desktop";
 
 const AI_WRAP = `Below is a Cartograph map of the project: its folders, files, symbols and dependencies. It describes the repo; it does not replace it.
 
-Search this map first (Directory tree, Quick find, File index, Symbols, Dependency tree) for the folder, file, export or package you need, then open only that path in the real repo. Don't list the whole workspace recursively and don't read source files wholesale. Folders marked omitted exist on disk; they were skipped on purpose.
+Search this map first (Directory tree, Quick find, File index, Dependency tree) for the folder, file, export or package you need, then open only that path in the real repo. Don't list the whole workspace recursively and don't read source files wholesale. Folders marked omitted exist on disk; they were skipped on purpose.
 
 `;
 

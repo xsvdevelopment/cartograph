@@ -262,13 +262,27 @@ function selfAndAncestors(path: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join("/"));
 }
 
+/**
+ * The outermost ignored folder holding `path`, so the map can name it with a
+ * file count. Covers built-in names, gitignore names and paths, and folders
+ * whose own `.gitignore` ignores everything (`*`). Null for files ignored on
+ * their own, like `*.log`.
+ */
 export function omittedDirKey(path: string, ignore: IgnoreSet): string | null {
-  const n = normalizeRel(path);
-  const parts = n.split("/");
-  const acc: string[] = [];
-  for (const part of parts) {
-    acc.push(part);
-    if (ignore.dirs.has(part)) return acc.join("/");
+  const parts = normalizeRel(path).split("/");
+  for (let i = 0; i < parts.length - 1; i++) {
+    const seg = parts[i];
+    const folder = parts.slice(0, i + 1).join("/");
+    if (ignore.dirs.has(seg)) return folder;
+    for (const pattern of ignore.extra) {
+      if (!pattern.startsWith("*.") && matchPattern(folder, seg, pattern)) return folder;
+    }
+    for (const { dir, patterns } of ignore.scoped) {
+      if (folder === dir && patterns.some((p) => p === "*" || p === "**")) return folder;
+      if (!folder.startsWith(dir + "/")) continue;
+      const rest = folder.slice(dir.length + 1);
+      if (patterns.some((p) => !p.startsWith("*.") && matchPattern(rest, seg, p))) return folder;
+    }
   }
   return null;
 }

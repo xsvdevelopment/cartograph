@@ -185,6 +185,24 @@ test("ignore: path patterns cover everything inside a matching folder", () => {
   assert.equal(isIgnoredPath("src/app.ts", ignore), false);
 });
 
+test("gitignored folders are named in the map with a count", async () => {
+  const files = filesFromRecord("p", {
+    ".gitignore": ".superpowers/\ndocs/api\n*.log\n",
+    ".superpowers/notes.md": "x",
+    ".superpowers/deep/plan.md": "x",
+    "docs/api/index.html": "x",
+    "docs/guide.md": "x",
+    "tools/.cache-dir/.gitignore": "*\n",
+    "tools/.cache-dir/blob.txt": "x",
+    "debug.log": "x",
+    "src/a.ts": "export const a = 1;\n",
+  });
+  const result = await scanProject("p", files, DEFAULT_SCAN_OPTIONS);
+  const named = Object.fromEntries(result.omittedDirs.map((d) => [d.path, d.count]));
+  assert.deepEqual(named, { ".superpowers": 2, "docs/api": 1, "tools/.cache-dir": 2 });
+  assert.ok(result.markdown.includes("`.superpowers/` (2 files)"));
+});
+
 test("secrets are named but never read", async () => {
   let reads = 0;
   const secret = new Blob(["TOKEN=abc"]);

@@ -8,7 +8,7 @@ holding the directory tree, the dependency tree, a language breakdown and the fu
 Add one rule to `CLAUDE.md` (or `AGENTS.md`, or a Cursor rule) and the agent searches the map first, then opens the
 one file it needs.
 
-On Cartograph's own source, the default map is about 90% smaller than pasting the code.
+On Cartograph's own source, the default map is about 93% smaller than pasting the code.
 
 ## Install
 

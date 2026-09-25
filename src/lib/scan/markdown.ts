@@ -51,7 +51,7 @@ function renderFull(result: MarkdownInput): string {
     `- Files listed: ${s.listedFiles} · omitted: ${s.omittedFiles} · binaries: ${s.binaryFiles} · secrets omitted: ${s.secretFiles}`,
   );
   sections.push(
-    `- Size: ${fmtBytes(s.listedBytes)} listed / ${fmtBytes(s.totalBytes)} scanned`,
+    `- Size: ${fmtBytes(s.listedBytes)} listed / ${fmtBytes(s.totalBytes)} in the folder, skipped files included`,
   );
   sections.push(
     `- Languages: ${s.languages} · manifests: ${s.manifests} · lines (listed): ${s.totalLines}`,
@@ -152,18 +152,8 @@ function renderFull(result: MarkdownInput): string {
   }
   sections.push("");
 
-  if (result.options.mode === "skeleton") {
-    const withSym = result.files.filter((f) => f.symbols?.length);
-    if (withSym.length) {
-      sections.push("## Symbols");
-      sections.push("");
-      for (const f of withSym) {
-        sections.push(`### \`${f.path}\``);
-        sections.push((f.symbols ?? []).map((s) => `- ${s}`).join("\n"));
-        sections.push("");
-      }
-    }
-  }
+  // Symbols live only on their file's index line: one grep for a name
+  // returns the path beside it, and a second copy would double the map.
 
   if (result.options.mode === "contents") {
     sections.push("## Contents");
@@ -297,7 +287,8 @@ function shortLang(language: string): string {
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n}B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)}MB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)}MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }
 
 function longestFence(content: string): string {

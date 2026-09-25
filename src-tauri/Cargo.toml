@@ -1,6 +1,6 @@
 [package]
 name = "cartograph"
-version = "1.0.0"
+version = "1.0.1"
 description = "Markdown maps of your codebase for coding agents"
 authors = ["XSV Development"]
 license = "MIT"

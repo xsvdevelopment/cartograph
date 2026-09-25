@@ -1,6 +1,6 @@
 {
   "name": "cartograph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Turns a project folder into one markdown map so coding agents read the map instead of crawling the repo.",
   "author": "XSV Development",
   "license": "MIT",

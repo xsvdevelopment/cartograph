@@ -35,7 +35,7 @@ agent should use it as the project index.
 | You need | Search this heading |
 |---|---|
 | A folder or file name | Directory tree, File index |
-| A function, class or export | Symbols, File index |
+| A function, class or export | File index |
 | A package or import | Dependency tree |
 | A language | Languages |
 | A feature area | Quick find |
@@ -61,7 +61,7 @@ around the repo.
 | Need | Heading to search |
 |---|---|
 | folder / file name | Directory tree, File index |
-| function / class / export | Symbols, File index |
+| function / class / export | File index |
 | package / import | Dependency tree |
 | language | Languages |
 | feature area | Quick find |`;

@@ -118,12 +118,18 @@ export function languageOf(path: string): string {
   if (BASENAME_LANG[base]) return BASENAME_LANG[base];
   const ext = extname(path);
   if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
+  if (IMAGE_EXT.has(ext)) return "Image";
   if (base.startsWith(".env")) return "Env";
   if (base.endsWith("file") && !base.includes(".")) return "Config";
+  if (!ext && base.startsWith(".")) return "Config";
+  if (TEXT_BASENAMES.has(base)) return "Text";
   return "Other";
 }
 
+const TEXT_BASENAMES = new Set(["license", "copying", "authors", "changelog", "notice", "readme"]);
+
 export function isProbablyText(path: string, language: string): boolean {
+  if (language === "Image") return false;
   if (language === "Other") {
     const ext = extname(path);
     if (!ext) {
@@ -150,16 +156,15 @@ export function isProbablyText(path: string, language: string): boolean {
 
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "heic"]);
 
-export function isImagePath(path: string): boolean {
-  return IMAGE_EXT.has(extname(path));
-}
-
 export function roleOf(path: string): string {
   const p = path.toLowerCase();
   const base = basename(p);
   if (base.startsWith("readme")) return "overview";
   if (base.startsWith("license") || base === "copying") return "license";
   if (base.includes("changelog")) return "changelog";
+  // Prose is docs wherever it sits; a design doc in specs/ is not a test.
+  if (/\.(md|mdx|rst|adoc)$/.test(base)) return "docs";
+  if (!base.slice(1).includes(".") && base.startsWith(".")) return "config";
   if (
     /(^|\/)(test|tests|__tests__|spec|specs)\//.test(p) ||
     /\.(test|spec)\./.test(base)
