@@ -69,7 +69,10 @@ const EXT_LANG: Record<string, string> = {
   zsh: "Shell",
   fish: "Shell",
   ps1: "PowerShell",
+  psm1: "PowerShell",
+  psd1: "PowerShell",
   bat: "Batch",
+  cmd: "Batch",
   dockerfile: "Dockerfile",
   makefile: "Make",
   cmake: "CMake",
@@ -196,7 +199,13 @@ export function roleOf(path: string): string {
   // Prose is docs wherever it sits; a design doc in specs/ is not a test.
   if (/\.(md|mdx|rst|adoc)$/.test(base)) return "docs";
   if (!base.slice(1).includes(".") && base.startsWith(".")) return "config";
-  if (/(^|\/)(test|tests|__tests__|spec|specs)\//.test(p) || /\.(test|spec)\./.test(base)) {
+  if (
+    /(^|\/)(test|tests|__tests__|spec|specs|[\w.]+[-_.]tests?)\//.test(p) ||
+    /\.(test|spec)\./.test(base) ||
+    /^test_\w+\.py$|_test\.(py|go|rb|dart|c|cc|cpp)$/.test(base) ||
+    // "ShopTests.cs", "MobshopTest.java": checked on the name as written, since "latest.js" is no test.
+    /[a-z0-9](Tests?|Spec)\.(cs|java|kt|swift|scala|php)$/.test(basename(path))
+  ) {
     return "test";
   }
   if (/(^|\/)(stories|__stories__)\//.test(p) || /\.stories\./.test(base)) {
@@ -228,6 +237,10 @@ export function roleOf(path: string): string {
   ) {
     return "lockfile";
   }
+  if (/(^|\/)\.(github|circleci)\//.test(p) || base.startsWith(".gitlab-ci")) return "ci";
+  if (/^(ts|js)config.*\.json$/.test(base)) return "config";
+  // Settings files at the top of a project configure a tool; they are not the project's source.
+  if (!p.includes("/") && /\.(ya?ml|toml|ini|json|jsonc)$/.test(base)) return "config";
   if (/(^|\/)(migrations?)\//.test(p)) return "migration";
   if (/(^|\/)(components?|ui)\//.test(p)) return "ui";
   if (/(^|\/)(pages?|views|screens|routes)\//.test(p)) return "route";
@@ -244,4 +257,80 @@ export function roleOf(path: string): string {
   if (/(^|\/)(assets?|static|public|images?|media)\//.test(p)) return "asset";
   if (/\.(css|scss|sass|less)$/.test(base)) return "style";
   return "source";
+}
+
+/** Languages that hold data, prose or pixels and no program logic. */
+const NOT_CODE = new Set([
+  "JSON",
+  "YAML",
+  "TOML",
+  "XML",
+  "Markdown",
+  "MDX",
+  "reStructuredText",
+  "CSV",
+  "Text",
+  "Env",
+  "Log",
+  "Lockfile",
+  "SVG",
+  "Image",
+  "3D model",
+  "glTF",
+  "Config",
+  "Procfile",
+  "Other",
+]);
+
+export function isCode(language: string): boolean {
+  return !NOT_CODE.has(language);
+}
+
+const COMPILED = new Set([
+  "C#",
+  "F#",
+  "Java",
+  "Kotlin",
+  "Swift",
+  "C",
+  "C++",
+  "Objective-C",
+  "Rust",
+  "Go",
+  "Scala",
+  "Dart",
+]);
+
+/** Roles that describe what a piece of code does, so only code can hold them. */
+const CODE_ROLES = new Set([
+  "source",
+  "ui",
+  "route",
+  "service",
+  "lib",
+  "hook",
+  "state",
+  "types",
+  "script",
+  "test",
+  "story",
+]);
+
+/**
+ * A file's role from its path and what it holds. A folder name alone would call a prompt file under `src/`
+ * source and a cached JSON response under `scripts/` a script.
+ */
+export function fileRole(path: string, language: string): string {
+  const role = roleOf(path);
+  // Unity keeps the whole game under `Assets/`; a script in there is still code.
+  if (isCode(language)) {
+    if (role === "asset") return "source";
+    // `Assets/Scripts/Shop.cs` is the game, not a helper script: compiled languages have no loose scripts.
+    if (role === "script" && COMPILED.has(language)) return "source";
+    return role;
+  }
+  if (!CODE_ROLES.has(role)) return role;
+  if (language === "Image" || language === "3D model" || language === "SVG" || language === "glTF")
+    return "asset";
+  return "data";
 }

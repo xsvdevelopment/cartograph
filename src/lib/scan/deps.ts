@@ -451,12 +451,15 @@ export function renderDepTree(manifest: DepManifest, compact = false): string {
   for (const g of groups) {
     const deps = manifest.dependencies.filter((d) => d.kind === g.kind);
     if (!deps.length) continue;
-    if (g.kind !== "prod") lines.push(`  ${g.label}`);
+    if (g.kind !== "prod") {
+      // What ships is a tree; tooling is one line, since nobody reads thirty dev dependencies down a column.
+      lines.push(`  ${g.label}: ${deps.map((d) => `${d.name} ${d.version}`).join(", ")}`);
+      continue;
+    }
     deps.forEach((d, i) => {
       const last = i === deps.length - 1;
       const branch = last ? "└──" : "├──";
-      const pad = g.kind === "prod" ? "  " : "    ";
-      lines.push(`${pad}${branch} ${d.name}  ${d.version}`);
+      lines.push(`  ${branch} ${d.name}  ${d.version}`);
     });
   }
   if (manifest.workspaces?.length) {

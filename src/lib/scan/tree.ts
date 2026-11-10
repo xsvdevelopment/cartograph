@@ -2,10 +2,26 @@ import { basename, extname } from "./ignore.ts";
 import type { ListedFile, TreeNode } from "./types.ts";
 
 /** A folder with more assets of one kind than this gets one summary line instead of one per file. */
-const IMAGE_GROUP_MIN = 9;
+const IMAGE_GROUP_MIN = 5;
 
 /** Asset kinds worth summarizing, and the plural used in the summary. */
 const GROUPED: Record<string, string> = { Image: "images", "3D model": "models" };
+
+/**
+ * Data is worth a line per file until one folder holds this many of a kind. Past that they are records
+ * (cached responses, fixtures, exports) and listing each would bury the source under them.
+ */
+const DATA_GROUP_MIN = 20;
+const BULK: Record<string, string> = {
+  JSON: "JSON files",
+  CSV: "CSV files",
+  XML: "XML files",
+  YAML: "YAML files",
+  Text: "text files",
+  Log: "logs",
+  SVG: "SVG files",
+  Other: "other files",
+};
 
 export type ImageGroup = {
   dir: string;
@@ -20,7 +36,10 @@ function dirOf(path: string): string {
 }
 
 function groupKey(f: ListedFile): string | undefined {
-  return GROUPED[f.language] ? `${dirOf(f.path)}\u0000${f.language}` : undefined;
+  if (f.kind === "secret" || f.kind === "lock") return undefined;
+  return GROUPED[f.language] || BULK[f.language]
+    ? `${dirOf(f.path)}\u0000${f.language}`
+    : undefined;
 }
 
 /** Folders full of images or models, which the map summarizes instead of listing. */
@@ -42,12 +61,20 @@ export function imageGroups(files: ListedFile[]): Map<string, ImageGroup> {
     if (ext && !g.exts.includes(ext)) g.exts.push(ext);
     byKey.set(key, g);
   }
-  for (const [key, g] of byKey) if (g.count < IMAGE_GROUP_MIN) byKey.delete(key);
+  for (const [key, g] of byKey) {
+    if (g.count < (GROUPED[g.language] ? IMAGE_GROUP_MIN : DATA_GROUP_MIN)) byKey.delete(key);
+  }
   return byKey;
 }
 
 export function imageGroupLabel(g: ImageGroup): string {
-  return `${g.count} ${GROUPED[g.language]} (${g.exts.sort().join(", ")})`;
+  const exts = g.exts.sort();
+  const shown = exts.length > 6 ? exts.slice(0, 6).join(", ") + ", …" : exts.join(", ");
+  return `${g.count} ${GROUPED[g.language] ?? BULK[g.language]}${shown ? ` (${shown})` : ""}`;
+}
+
+export function imageGroupRole(g: ImageGroup): string {
+  return GROUPED[g.language] || g.language === "SVG" ? "asset" : "data";
 }
 
 /**
@@ -163,87 +190,59 @@ function sortTree(node: TreeNode) {
   for (const child of node.children) sortTree(child);
 }
 
-export function renderTreeAscii(root: TreeNode): string {
-  const lines: string[] = [`${root.name}/`];
-  const children = root.children ?? [];
-  children.forEach((child, i) => {
-    walk(child, "", i === children.length - 1, lines);
-  });
+/**
+ * Folders only, each with the number of listed files beneath it. Every file is already in the file index with
+ * its full path, so naming them here a second time would double the map. A folder whose only content is one
+ * more folder is written on the same line ("docs/guides/api/").
+ */
+export function renderDirTree(root: TreeNode, files: ListedFile[], compact = false): string {
+  const under = new Map<string, number>();
+  const direct = new Map<string, number>();
+  for (const f of files) {
+    if (f.kind === "skipped") continue;
+    let dir = dirOf(f.path);
+    direct.set(dir, (direct.get(dir) ?? 0) + 1);
+    for (;;) {
+      under.set(dir, (under.get(dir) ?? 0) + 1);
+      if (!dir) break;
+      dir = dirOf(dir);
+    }
+  }
+  const dirsOf = (node: TreeNode) => (node.children ?? []).filter((c) => c.type === "dir");
+  const count = (n: number) => (compact ? String(n) : `${n} file${n === 1 ? "" : "s"}`);
+  const lines: string[] = [
+    compact
+      ? `${root.name}/ ${count(under.get("") ?? 0)}`
+      : `${root.name}/ · ${count(under.get("") ?? 0)}`,
+  ];
+
+  const visit = (node: TreeNode, prefix: string, isLast: boolean) => {
+    let label = node.name;
+    while (!node.omitted && !direct.get(node.path)) {
+      const kids = dirsOf(node);
+      if (kids.length !== 1) break;
+      node = kids[0];
+      label += "/" + node.name;
+    }
+    const branch = compact ? "" : isLast ? "└── " : "├── ";
+    if (node.omitted) {
+      const n = node.omittedCount ?? 0;
+      lines.push(
+        prefix +
+          branch +
+          (compact
+            ? `${label}/ [omitted ${n}]`
+            : `${label}/  [omitted · ${n} file${n === 1 ? "" : "s"}]`),
+      );
+      return;
+    }
+    const n = under.get(node.path) ?? 0;
+    lines.push(prefix + branch + (compact ? `${label}/ ${n}` : `${label}/ · ${n}`));
+    const kids = dirsOf(node);
+    const next = prefix + (compact ? "  " : isLast ? "    " : "│   ");
+    kids.forEach((k, i) => visit(k, next, i === kids.length - 1));
+  };
+  const top = dirsOf(root);
+  top.forEach((k, i) => visit(k, compact ? "  " : "", i === top.length - 1));
   return lines.join("\n");
-}
-
-function walk(node: TreeNode, prefix: string, isLast: boolean, lines: string[]) {
-  const branch = isLast ? "└── " : "├── ";
-  const label = formatNode(node);
-  lines.push(prefix + branch + label);
-  const kids = node.children ?? [];
-  if (node.omitted || kids.length === 0) return;
-  const next = prefix + (isLast ? "    " : "│   ");
-  kids.forEach((child, i) => {
-    walk(child, next, i === kids.length - 1, lines);
-  });
-}
-
-function formatNode(node: TreeNode): string {
-  if (node.omitted) {
-    const n = node.omittedCount ?? 0;
-    return `${node.name}/  [omitted · ${n} file${n === 1 ? "" : "s"}]`;
-  }
-  if (node.type === "dir") return `${node.name}/`;
-  return node.name;
-}
-
-/** Compact tree: sibling files on one line, dirs nested. */
-export function renderTreeCompact(root: TreeNode): string {
-  const lines: string[] = [`${root.name}/`];
-  compactWalk(root, "", lines);
-  return lines.join("\n");
-}
-
-function compactWalk(node: TreeNode, indent: string, lines: string[]) {
-  const kids = node.children ?? [];
-  const dirs = kids.filter((k) => k.type === "dir");
-  const files = kids.filter((k) => k.type === "file");
-
-  if (files.length) {
-    const names = files.map((f) => f.name);
-    const grouped = groupByExt(names);
-    lines.push(`${indent}${grouped}`);
-  }
-  for (const dir of dirs) {
-    if (dir.omitted) {
-      lines.push(`${indent}${dir.name}/ [omitted ${dir.omittedCount ?? 0}]`);
-      continue;
-    }
-    const dirKids = dir.children ?? [];
-    const onlyFiles = dirKids.length > 0 && dirKids.every((c) => c.type === "file");
-    if (onlyFiles && dirKids.length <= 6) {
-      lines.push(`${indent}${dir.name}/ ${dirKids.map((c) => c.name).join(" ")}`);
-    } else {
-      lines.push(`${indent}${dir.name}/`);
-      compactWalk(dir, indent + "  ", lines);
-    }
-  }
-}
-
-function groupByExt(names: string[]): string {
-  if (names.length <= 8) return names.join(" ");
-  const byExt = new Map<string, string[]>();
-  for (const n of names) {
-    const i = n.lastIndexOf(".");
-    const ext = i > 0 ? n.slice(i) : "";
-    const arr = byExt.get(ext) ?? [];
-    arr.push(n);
-    byExt.set(ext, arr);
-  }
-  const parts: string[] = [];
-  for (const [ext, list] of byExt) {
-    if (list.length >= 4 && ext) {
-      const stems = list.map((n) => n.slice(0, n.length - ext.length));
-      parts.push(`{${stems.join(",")}}${ext}`);
-    } else {
-      parts.push(...list);
-    }
-  }
-  return parts.join(" ");
 }

@@ -16,7 +16,7 @@ export const DEFAULT_SCAN_OPTIONS: ScanOptions = {
   dialect: "markdown",
   extraIgnores: [],
   maxFileBytes: 256 * 1024,
-  maxReadFiles: 500,
+  maxReadFiles: 2000,
 };
 
 export type VirtualFile = {
@@ -40,6 +40,10 @@ export type ListedFile = {
   kind: FileKind;
   lines?: number;
   symbols?: string[];
+  /** What the file says it is: its opening comment, docstring or first heading. */
+  summary?: string;
+  /** How many project files import this one. */
+  usedBy?: number;
   content?: string;
   truncated?: boolean;
   skipReason?: string;
@@ -95,6 +99,23 @@ export type LanguageStat = {
   lines: number;
 };
 
+/** Commands a project defines for itself, from one `package.json`, Makefile or justfile. */
+export type CommandGroup = {
+  path: string;
+  dir: string;
+  /** How to invoke one, e.g. "npm run <name>". */
+  how: string;
+  commands: { name: string; run?: string }[];
+  /** Commands left out of `commands` to keep the map small. */
+  more: number;
+};
+
+/** A file where execution starts, and what makes it one. */
+export type EntryPoint = {
+  path: string;
+  why: string;
+};
+
 export type WorkspaceLink = {
   from: string;
   to: string;
@@ -109,6 +130,10 @@ export type ScanResult = {
   languages: LanguageStat[];
   manifests: DepManifest[];
   workspaceLinks: WorkspaceLink[];
+  commands: CommandGroup[];
+  entryPoints: EntryPoint[];
+  /** Entry points left out of `entryPoints` to keep the map small. */
+  entryPointsMore: number;
   omittedDirs: { path: string; count: number }[];
   stats: {
     listedFiles: number;

@@ -14,6 +14,8 @@ export function extractSymbols(path: string, content: string, language?: string)
   const lang = extname(path) || SCRIPT_EXT[language ?? ""] || "";
   try {
     if (["sh", "bash", "zsh"].includes(lang)) return shellSymbols(content);
+    if (["ps1", "psm1"].includes(lang)) return powershellSymbols(content);
+    if (["bat", "cmd"].includes(lang)) return batchSymbols(content);
     if (["ts", "tsx", "js", "jsx", "mjs", "cjs", "mts", "cts"].includes(lang)) {
       return jsSymbols(content);
     }
@@ -248,6 +250,23 @@ function shellSymbols(src: string): string[] {
   const re = /^[ \t]*(?:function\s+([A-Za-z_][\w:-]*)|([A-Za-z_][\w:-]*)\s*\(\s*\))\s*\{?/gm;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) found.push(m[1] || m[2]);
+  return uniq(found);
+}
+
+function powershellSymbols(src: string): string[] {
+  const found: string[] = [];
+  const re = /^[ \t]*(?:function|filter)\s+(?:(?:global|script|private):)?([A-Za-z_][\w-]*)/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) found.push(m[1]);
+  return uniq(found);
+}
+
+/** A batch file's labels are its subroutines: what `call :name` and `goto name` jump to. */
+function batchSymbols(src: string): string[] {
+  const found: string[] = [];
+  const re = /^[ \t]*:([A-Za-z_][\w-]*)[ \t]*$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) if (m[1].toLowerCase() !== "eof") found.push(m[1]);
   return uniq(found);
 }
 

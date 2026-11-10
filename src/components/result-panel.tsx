@@ -13,7 +13,7 @@ import { desktopBridge } from "@/lib/desktop";
 
 const AI_WRAP = `Below is a Cartograph map of the project: its folders, files, symbols and dependencies. It describes the repo; it does not replace it.
 
-Search this map first (Directory tree, Quick find, File index, Dependency tree) for the folder, file, export or package you need, then open only that path in the real repo. Don't list the whole workspace recursively and don't read source files wholesale. Folders marked omitted exist on disk; they were skipped on purpose.
+Search this map first (Quick find, Entry points, Commands, File index, Directory tree, Dependency tree) for the folder, file, export, command or package you need, then open only that path in the real repo. Don't list the whole workspace recursively and don't read source files wholesale. Folders marked omitted exist on disk; they were skipped on purpose.
 
 `;
 
@@ -123,6 +123,7 @@ export function ResultPanel() {
         <Tabs defaultValue="map">
           <TabsList className="w-full">
             <TabsTrigger value="map">Map</TabsTrigger>
+            <TabsTrigger value="start">Start</TabsTrigger>
             <TabsTrigger value="agents">Agents</TabsTrigger>
             <TabsTrigger value="tree">Tree</TabsTrigger>
             <TabsTrigger value="deps">Deps</TabsTrigger>
@@ -134,6 +135,12 @@ export function ResultPanel() {
               <pre className="max-w-full p-4 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">
                 {result.markdown}
               </pre>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="start">
+            <ScrollArea className="h-[min(520px,60vh)] rounded-md bg-background p-4 shadow-[var(--shadow-border)]">
+              <StartHere />
             </ScrollArea>
           </TabsContent>
 
@@ -206,6 +213,81 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       </dd>
       {hint ? <p className="mt-1 text-xs tabular text-muted-foreground">{hint}</p> : null}
     </div>
+  );
+}
+
+/** What an agent needs before it reads any code: where the program starts, how to run it, what is load-bearing. */
+function StartHere() {
+  const result = useCartograph((s) => s.result);
+  if (!result) return null;
+  const hubs = result.files
+    .filter((f) => (f.usedBy ?? 0) >= 3)
+    .sort((a, b) => (b.usedBy ?? 0) - (a.usedBy ?? 0) || a.path.localeCompare(b.path))
+    .slice(0, 8);
+  if (!result.entryPoints.length && !result.commands.length && !hubs.length) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No entry points, commands or shared files found. Map depth reads no source, so try Skeleton.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      {result.entryPoints.length > 0 ? (
+        <StartGroup title="Entry points" note="Where execution starts.">
+          {result.entryPoints.map((e) => (
+            <StartRow key={e.path} name={e.path} detail={e.why} />
+          ))}
+          {result.entryPointsMore > 0 ? (
+            <StartRow name={`and ${result.entryPointsMore} more`} />
+          ) : null}
+        </StartGroup>
+      ) : null}
+      {result.commands.map((g) => (
+        <StartGroup key={g.path} title="Commands" note={`${g.path} · ${g.how}`}>
+          {g.commands.map((c) => (
+            <StartRow key={c.name} name={c.name} detail={c.run} />
+          ))}
+          {g.more > 0 ? <StartRow name={`and ${g.more} more`} /> : null}
+        </StartGroup>
+      ))}
+      {hubs.length > 0 ? (
+        <StartGroup title="Most imported" note="A change to one of these reaches the most files.">
+          {hubs.map((f) => (
+            <StartRow key={f.path} name={f.path} detail={`used by ${f.usedBy} files`} />
+          ))}
+        </StartGroup>
+      ) : null}
+    </div>
+  );
+}
+
+function StartGroup({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+        {title}
+      </p>
+      <p className="mt-1 text-xs break-words text-muted-foreground">{note}</p>
+      <ul className="mt-2 flex flex-col gap-1.5">{children}</ul>
+    </div>
+  );
+}
+
+function StartRow({ name, detail }: { name: string; detail?: string }) {
+  return (
+    <li className="flex flex-col gap-0.5 font-mono text-xs sm:flex-row sm:items-baseline sm:gap-3">
+      <span className="break-all text-foreground">{name}</span>
+      {detail ? <span className="break-words text-muted-foreground">{detail}</span> : null}
+    </li>
   );
 }
 

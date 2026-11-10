@@ -4,7 +4,9 @@ Coding agents start most tasks by exploring the repo: list the root, list `src`,
 to find the one that matters. Every session pays for that walk again, in tokens and in time.
 
 Cartograph does the walk once. Point it at a project and it writes one markdown file, `<project>.cartograph.md`,
-holding the directory tree, the dependency tree, a language breakdown and the functions and classes in each file.
+holding what an agent otherwise has to dig for: where the program starts, the commands that build, test and run it,
+the files everything else imports, the folder tree, the dependency tree, and for each file its functions and classes
+and the one line it says about itself.
 Add one rule to `CLAUDE.md` (or `AGENTS.md`, or a Cursor rule) and the agent searches the map first, then opens the
 one file it needs.
 
@@ -46,8 +48,28 @@ Rescan whenever the project changes shape. The map is a snapshot, not a live vie
 - Anything listed under **Also skip**, one gitignore-style pattern per line.
 - Secrets (`.env`, `.env.local`, keys, certificates, `.npmrc`) are listed by name so the agent knows they exist.
   Their contents are never read. Templates like `.env.example` are read as normal.
-- Lockfiles, binaries, images and fonts are listed but not read. A folder with more than eight images or 3D
-  models gets one summary line, like `sprites/ · 412 images (png)`, instead of one line per file.
+- Lockfiles, binaries, images and fonts are listed but not read. A folder with five or more images or 3D models
+  gets one summary line, like `sprites/ · 412 images (png)`, instead of one line per file. So does a folder with
+  twenty or more data files of one kind, such as cached JSON responses.
+- In a Unity project, the `.meta` files and the `Library`, `Temp`, `Logs`, `Obj` and `UserSettings` folders.
+- Working folders that coding agents leave behind: `.superpowers`, `.remember`, `.playwright-mcp`.
+
+## What the map holds
+
+- **Quick find**: the folder to open for source, UI, routes, services, tests, scripts and docs.
+- **Entry points**: the file a manifest names as its main, the script a `start` command runs, the page a browser
+  loads and the script that page loads, Python console scripts, batch files at the top of the project, and files
+  that declare a main themselves.
+- **Commands**: `package.json`, `deno.json` and `composer.json` scripts and Makefile or justfile targets, with the
+  package manager the lockfile implies, plus the standard commands for Cargo, Go, Gradle and .NET projects.
+- **Most imported**: the files the most other files import, so a change to one is made knowingly. Each file in the
+  index also carries its own "used by" count. Imports are followed in JavaScript, TypeScript, Python, Java, Kotlin,
+  Rust, Dart, C-family includes, stylesheets, the scripts and stylesheets an HTML page loads, and the scripts a
+  PowerShell or batch file runs. C# and Go name a namespace or a package, not a file, so there a file counts as used
+  when another mentions a type or package-level name it declares.
+- **Directory tree**: folders only, with the number of listed files under each.
+- **Languages** and **Dependency tree**.
+- **File index**: every file with its language, line count, role, symbols and its opening comment or first heading.
 
 ## What it writes
 
@@ -65,7 +87,8 @@ No network access, no telemetry. Fonts are bundled.
 npm (`package.json`, `pnpm-workspace.yaml`), Python (`pyproject.toml`, `requirements*.txt`, `Pipfile`), Cargo, Go,
 Ruby (`Gemfile`), PHP (`composer.json`), Dart (`pubspec.yaml`), Maven, Gradle, Elixir (`mix.exs`) and .NET
 (`.csproj`, `.fsproj`). Symbols are extracted for TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, Ruby, C#,
-F# and Swift, plus shell scripts and extensionless scripts identified by their `#!` line.
+F# and Swift, plus shell scripts, PowerShell functions, batch file labels and extensionless scripts identified by their
+`#!` line.
 
 ## Development
 

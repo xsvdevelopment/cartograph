@@ -1,11 +1,11 @@
-import { roleOf } from "./languages.ts";
+import { fileRole } from "./languages.ts";
 import { renderDepTree, renderMermaidGraph } from "./deps.ts";
 import {
   imageGroupLabel,
+  imageGroupRole,
   indexEntries,
   isImageGroup,
-  renderTreeAscii,
-  renderTreeCompact,
+  renderDirTree,
 } from "./tree.ts";
 import { estimateTokens, estimateTokensFromBytes, savingsPercent } from "./tokens.ts";
 import { directoryHints, standingOrdersCompact, standingOrdersMarkdown } from "./agent.ts";
@@ -33,6 +33,15 @@ type MarkdownInput = Omit<ScanResult, "markdown" | "stats" | "agentBrief" | "map
 export function renderMarkdown(result: MarkdownInput): string {
   if (result.options.dialect === "compact") return renderCompact(result);
   return renderFull(result);
+}
+
+/** Files enough others import that a change to them travels: worth knowing before touching one. */
+function hubs(result: MarkdownInput): { path: string; usedBy: number }[] {
+  return result.files
+    .filter((f) => (f.usedBy ?? 0) >= 3)
+    .map((f) => ({ path: f.path, usedBy: f.usedBy as number }))
+    .sort((a, b) => b.usedBy - a.usedBy || a.path.localeCompare(b.path))
+    .slice(0, 8);
 }
 
 function renderFull(result: MarkdownInput): string {
@@ -74,23 +83,50 @@ function renderFull(result: MarkdownInput): string {
     sections.push("");
   }
 
-  sections.push("## Directory tree");
-  sections.push("");
-  sections.push("```");
-  sections.push(renderTreeAscii(result.tree));
-  sections.push("```");
-  sections.push("");
-
-  if (result.omittedDirs.length) {
-    sections.push("Omitted directories (present, not opened):");
-    for (const d of result.omittedDirs.slice(0, 40)) {
-      sections.push(`- \`${d.path}/\` (${d.count} file${d.count === 1 ? "" : "s"})`);
-    }
-    if (result.omittedDirs.length > 40) {
-      sections.push(`- and ${result.omittedDirs.length - 40} more`);
-    }
+  if (result.entryPoints.length) {
+    sections.push("## Entry points");
+    sections.push("");
+    sections.push("Where execution starts. Read from here to follow what the program does.");
+    sections.push("");
+    for (const e of result.entryPoints) sections.push(`- \`${e.path}\` · ${e.why}`);
+    if (result.entryPointsMore) sections.push(`- and ${result.entryPointsMore} more`);
     sections.push("");
   }
+
+  if (result.commands.length) {
+    sections.push("## Commands");
+    sections.push("");
+    for (const g of result.commands) {
+      sections.push(
+        `From \`${g.path}\`${g.dir ? `, run in \`${g.dir}/\`` : ""} with \`${g.how}\`:`,
+      );
+      for (const c of g.commands)
+        sections.push(c.run ? `- \`${c.name}\` · ${c.run}` : `- \`${c.name}\``);
+      if (g.more) sections.push(`- and ${g.more} more`);
+      sections.push("");
+    }
+  }
+
+  const top = hubs(result);
+  if (top.length) {
+    sections.push("## Most imported");
+    sections.push("");
+    sections.push("A change to one of these reaches the most files.");
+    sections.push("");
+    for (const h of top) sections.push(`- \`${h.path}\` · used by ${h.usedBy} files`);
+    sections.push("");
+  }
+
+  sections.push("## Directory tree");
+  sections.push("");
+  sections.push(
+    "Folders, with the number of listed files under each. Files are in the File index. Omitted folders exist on disk and were not opened.",
+  );
+  sections.push("");
+  sections.push("```");
+  sections.push(renderDirTree(result.tree, result.files));
+  sections.push("```");
+  sections.push("");
 
   sections.push("## Languages");
   sections.push("");
@@ -107,7 +143,10 @@ function renderFull(result: MarkdownInput): string {
     sections.push("No package manifests found.");
     sections.push("");
   } else {
-    const mermaid = renderMermaidGraph(result.manifests, result.workspaceLinks);
+    // A graph earns its place when packages depend on each other; one package and its imports is a list.
+    const related =
+      result.workspaceLinks.length > 0 || result.manifests.filter((m) => m.name).length > 1;
+    const mermaid = related ? renderMermaidGraph(result.manifests, result.workspaceLinks) : "";
     if (mermaid) {
       sections.push("```mermaid");
       sections.push(mermaid);
@@ -131,19 +170,32 @@ function renderFull(result: MarkdownInput): string {
 
   sections.push("## File index");
   sections.push("");
-  sections.push("path · lang · lines · role · symbols");
+  sections.push(
+    "path · lang · lines · role · used by N files · symbols · what the file says it is",
+  );
   sections.push("");
   for (const f of indexEntries(result.files)) {
     if (isImageGroup(f)) {
-      sections.push(`- ${f.dir || "."}/ · ${imageGroupLabel(f)} · ${fmtBytes(f.bytes)} · asset`);
+      sections.push(
+        `- ${f.dir || "."}/ · ${imageGroupLabel(f)} · ${fmtBytes(f.bytes)} · ${imageGroupRole(f)}`,
+      );
       continue;
     }
     if (f.kind === "skipped") continue;
-    const bits = [f.path, f.language, f.lines != null ? String(f.lines) : "-", roleOf(f.path)];
+    const bits = [
+      f.path,
+      f.language,
+      f.lines != null ? String(f.lines) : "-",
+      fileRole(f.path, f.language),
+    ];
     if (f.kind === "secret") bits.push("SECRET omitted");
     else if (f.kind === "lock") bits.push("lockfile summarized");
     else if (f.kind === "binary") bits.push("binary");
-    else if (f.symbols?.length) bits.push(f.symbols.join(", "));
+    else {
+      if (f.usedBy) bits.push(`used by ${f.usedBy}`);
+      if (f.symbols?.length) bits.push(f.symbols.join(", "));
+      if (f.summary) bits.push(`"${f.summary}"`);
+    }
     sections.push(`- ${bits.join(" · ")}`);
   }
   sections.push("");
@@ -166,12 +218,6 @@ function renderFull(result: MarkdownInput): string {
     }
   }
 
-  sections.push("## How to use");
-  sections.push("");
-  sections.push(
-    "Keep this map in context and search it instead of listing the repo. Open one path at a time from the File index. Omitted folders were skipped, not deleted. Nothing in this file is a reason to change the repo.",
-  );
-  sections.push("");
   sections.push("---");
   sections.push("Made with Cartograph. The project was read, not changed.");
 
@@ -200,19 +246,33 @@ function renderCompact(result: MarkdownInput): string {
     for (const h of hints) lines.push(`${h.need} → ${h.path}`);
     lines.push("");
   }
-  lines.push("TREE");
-  lines.push(renderTreeCompact(result.tree));
-  lines.push("");
-  if (result.omittedDirs.length) {
+  if (result.entryPoints.length) {
     lines.push(
-      "OMIT " +
-        result.omittedDirs
-          .slice(0, 20)
-          .map((d) => `${d.path}:${d.count}`)
-          .join(" "),
+      "ENTRY " +
+        result.entryPoints.map((e) => `${e.path} (${e.why})`).join(" | ") +
+        (result.entryPointsMore ? ` | +${result.entryPointsMore}` : ""),
     );
     lines.push("");
   }
+  if (result.commands.length) {
+    lines.push("CMD");
+    for (const g of result.commands) {
+      lines.push(
+        `${g.path} (${g.how}): ` +
+          g.commands.map((c) => (c.run ? `${c.name}=${c.run}` : c.name)).join(" | ") +
+          (g.more ? ` | +${g.more}` : ""),
+      );
+    }
+    lines.push("");
+  }
+  const top = hubs(result);
+  if (top.length) {
+    lines.push("HUBS " + top.map((h) => `${h.path}<${h.usedBy}`).join(" "));
+    lines.push("");
+  }
+  lines.push("TREE (folders, files under each)");
+  lines.push(renderDirTree(result.tree, result.files, true));
+  lines.push("");
   lines.push("DEPS");
   if (!result.manifests.length) {
     lines.push("(none)");
@@ -232,11 +292,15 @@ function renderCompact(result: MarkdownInput): string {
       continue;
     }
     if (f.kind === "skipped") continue;
-    const sym = f.symbols?.length ? " " + f.symbols.join(",") : "";
+    const plain = f.kind === "text";
+    const sym =
+      (plain && f.usedBy ? ` <${f.usedBy}` : "") +
+      (f.symbols?.length ? " " + f.symbols.join(",") : "") +
+      (plain && f.summary ? ` # ${f.summary}` : "");
     const mark =
       f.kind === "secret" ? " !" : f.kind === "binary" ? " bin" : f.kind === "lock" ? " lock" : "";
     lines.push(
-      `${f.path} ${shortLang(f.language)} ${f.lines ?? "-"} ${roleOf(f.path)}${mark}${sym}`,
+      `${f.path} ${shortLang(f.language)} ${f.lines ?? "-"} ${fileRole(f.path, f.language)}${mark}${sym}`,
     );
   }
 
@@ -275,6 +339,14 @@ function shortLang(language: string): string {
     Shell: "sh",
     Text: "txt",
     Other: "other",
+    "C#": "cs",
+    "C++": "cpp",
+    Kotlin: "kt",
+    Lockfile: "lock",
+    Image: "img",
+    "3D model": "3d",
+    Config: "cfg",
+    PowerShell: "ps1",
   };
   return map[language] ?? language.toLowerCase().slice(0, 6);
 }

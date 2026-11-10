@@ -46,6 +46,10 @@ export const IGNORED_DIR_NAMES = new Set([
   ".dart_tool",
   ".terraform",
   ".serverless",
+  // Working folders that coding agents and their tools leave in a repo.
+  ".superpowers",
+  ".remember",
+  ".playwright-mcp",
 ]);
 
 const IGNORED_BASENAMES = new Set([

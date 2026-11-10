@@ -12,6 +12,5 @@ export type {
   LanguageStat,
 } from "./types.ts";
 export { estimateTokens, savingsPercent } from "./tokens.ts";
-export { renderTreeAscii } from "./tree.ts";
 export { isManifestPath } from "./deps.ts";
 export { mapFileName, renderAgentBrief } from "./agent.ts";

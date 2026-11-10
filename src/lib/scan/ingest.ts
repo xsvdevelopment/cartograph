@@ -26,6 +26,12 @@ import {
 import { mapFileName, renderAgentBrief } from "./agent.ts";
 import type { ListedFile, ProgressFn, ScanOptions, ScanResult, VirtualFile } from "./types.ts";
 import { DEFAULT_SCAN_OPTIONS } from "./types.ts";
+import { findCommands, isCommandFile } from "./commands.ts";
+import { importedByCounts, localImports } from "./imports.ts";
+import { fileSummary } from "./summary.ts";
+import { isCode, roleOf } from "./languages.ts";
+import { findEntryPoints } from "./entry.ts";
+import type { ScopedIgnore } from "./ignore.ts";
 
 const TEXT_DECODER = new TextDecoder("utf-8", { fatal: false });
 
@@ -109,9 +115,15 @@ export async function scanProject(
   await hydrateContents(gitignoreFiles, options.maxFileBytes, onProgress, "Reading ignore files");
 
   const fromGit = collectGitignorePatterns(gitignoreFiles);
+  const unity = unityIgnores(input);
   const ignore = buildIgnoreSet(
-    [...options.extraIgnores, ...fromGit.root, ...flattenUserIgnores(options.extraIgnores)],
-    fromGit.scoped,
+    [
+      ...options.extraIgnores,
+      ...fromGit.root,
+      ...flattenUserIgnores(options.extraIgnores),
+      ...unity.root,
+    ],
+    [...fromGit.scoped, ...unity.scoped],
   );
   const dirIgnore: IgnoreSet = { ...ignore, extra: [] };
 
@@ -148,7 +160,9 @@ export async function scanProject(
   const alwaysRead = candidates.filter(
     (f) =>
       !isSecretPath(f.path) &&
-      (isManifestPath(f.path) || basename(f.path).toLowerCase().startsWith("readme")),
+      (isManifestPath(f.path) ||
+        isCommandFile(f.path) ||
+        basename(f.path).toLowerCase().startsWith("readme")),
   );
 
   const needContent =
@@ -166,8 +180,15 @@ export async function scanProject(
           );
         });
 
-  // Manifests and READMEs first, so the read cap never costs the dependency tree.
-  const toRead = [...alwaysRead, ...needContent.filter((f) => !alwaysRead.includes(f))]
+  // Manifests and READMEs first, so the read cap never costs the dependency tree. Then code before data:
+  // a folder of cached JSON must not use up the cap ahead of the source.
+  const first = new Set(alwaysRead);
+  const rest = needContent.filter((f) => !first.has(f));
+  const toRead = [
+    ...alwaysRead,
+    ...rest.filter((f) => isCode(languageOf(f.path))),
+    ...rest.filter((f) => !isCode(languageOf(f.path))),
+  ]
     .filter((f) => f.content == null && (f.blob || f.load))
     .slice(0, options.maxReadFiles);
 
@@ -228,12 +249,15 @@ export async function scanProject(
     if (lines) totalLines += lines;
 
     let symbols: string[] | undefined;
+    let summary: string | undefined;
     if (
       content &&
       kind === "text" &&
       (options.mode === "skeleton" || options.mode === "contents")
     ) {
-      symbols = extractSymbols(file.path, content, language);
+      // A test's local helpers ("setup", "plan") are noise in an index: nobody searches for them.
+      if (roleOf(file.path) !== "test") symbols = extractSymbols(file.path, content, language);
+      summary = fileSummary(file.path, content);
     }
 
     listedBytes += file.size;
@@ -253,6 +277,7 @@ export async function scanProject(
       kind,
       lines,
       symbols: symbols?.length ? symbols : undefined,
+      summary,
       content: includeBody ? content : undefined,
       truncated: includeBody ? truncated : undefined,
       skipReason,
@@ -266,15 +291,47 @@ export async function scanProject(
 
   listed.sort((a, b) => a.path.localeCompare(b.path));
 
+  const contentOf = new Map(candidates.map((c) => [c.path, c.content]));
   const manifestSources = listed
     .filter((f) => isManifestPath(f.path))
-    .map((f) => ({
-      path: f.path,
-      content: candidates.find((c) => c.path === f.path)?.content,
-    }));
+    .map((f) => ({ path: f.path, content: contentOf.get(f.path) }));
 
   const manifests = parseManifests(manifestSources);
   const links = workspaceLinks(manifests);
+
+  const commands = findCommands(
+    listed
+      // A solution file is not text the map reads, but its presence alone says which commands apply.
+      .filter(
+        (f) =>
+          (f.kind === "text" || /\.sln$/i.test(f.path)) &&
+          (isCommandFile(f.path) || basename(f.path).toLowerCase() === "package.json"),
+      )
+      .map((f) => ({ path: f.path, content: contentOf.get(f.path) })),
+    listed.map((f) => f.path),
+  );
+
+  const entry = findEntryPoints(
+    listed
+      .filter((f) => f.kind === "text")
+      .map((f) => ({ path: f.path, content: contentOf.get(f.path) })),
+  );
+
+  // Who imports whom needs the source, which map mode never reads.
+  if (options.mode !== "map") {
+    const packageNames = new Set(manifests.flatMap((m) => m.dependencies.map((d) => d.name)));
+    const graph = localImports(
+      listed
+        .filter((f) => f.kind === "text")
+        .map((f) => ({ path: f.path, content: contentOf.get(f.path) })),
+      packageNames,
+    );
+    const counts = importedByCounts(graph);
+    for (const f of listed) {
+      const n = counts.get(f.path);
+      if (n) f.usedBy = n;
+    }
+  }
 
   const omittedDirs = [...omitted.entries()]
     .map(([path, v]) => ({ path, count: v.count }))
@@ -314,6 +371,9 @@ export async function scanProject(
     languages,
     manifests,
     workspaceLinks: links,
+    commands,
+    entryPoints: entry.entries,
+    entryPointsMore: entry.more,
     omittedDirs,
     stats: partialStats,
   });
@@ -329,6 +389,9 @@ export async function scanProject(
     languages,
     manifests,
     workspaceLinks: links,
+    commands,
+    entryPoints: entry.entries,
+    entryPointsMore: entry.more,
     omittedDirs,
     stats: {
       ...partialStats,
@@ -381,6 +444,33 @@ function looksBinary(text: string): boolean {
     if (c < 9 || (c > 13 && c < 32)) ctrl++;
   }
   return ctrl / n > 0.1;
+}
+
+/**
+ * Unity writes a `.meta` beside every asset and keeps its caches in fixed folders beside `Assets/`. None of
+ * it is source, and a project rarely gitignores the `.meta` files, so they are skipped wherever a Unity
+ * project sits in the tree.
+ */
+function unityIgnores(files: VirtualFile[]): { root: string[]; scoped: ScopedIgnore[] } {
+  const patterns = [
+    "/Library",
+    "/Temp",
+    "/Logs",
+    "/Obj",
+    "/obj",
+    "/UserSettings",
+    "/MemoryCaptures",
+    "*.meta",
+  ];
+  const root: string[] = [];
+  const scoped: ScopedIgnore[] = [];
+  for (const f of files) {
+    const m = /^(?:(.*)\/)?ProjectSettings\/ProjectVersion\.txt$/.exec(f.path);
+    if (!m) continue;
+    if (m[1]) scoped.push({ dir: m[1], patterns });
+    else root.push(...patterns);
+  }
+  return { root, scoped };
 }
 
 function flattenUserIgnores(extra: string[]): string[] {
