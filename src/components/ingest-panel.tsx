@@ -61,8 +61,8 @@ export function IngestPanel() {
               Your files stay put.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Drop a project folder or a zip here. Cartograph only reads it. The
-              map is a new file you save wherever you like.
+              Drop a project folder or a zip here. Cartograph only reads it. The map is a new file
+              you save wherever you like.
             </p>
           </div>
           <Shield className="mt-1 size-5 shrink-0 text-safe" aria-hidden />
@@ -145,9 +145,8 @@ export function IngestPanel() {
           Depth
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Map lists files and dependencies. Skeleton adds the functions,
-          classes and exports in each file. Contents adds the source itself,
-          minus secrets and lockfiles.
+          Map lists files and dependencies. Skeleton adds the functions, classes and exports in each
+          file. Contents adds the source itself, minus secrets and lockfiles.
         </p>
         <Segmented<ScanMode>
           className="mt-4"
@@ -178,13 +177,15 @@ export function IngestPanel() {
       </div>
 
       <div className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
-        <label htmlFor="ignores" className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+        <label
+          htmlFor="ignores"
+          className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase"
+        >
           Also skip
         </label>
         <p className="mt-2 text-sm text-muted-foreground">
-          One per line, gitignore style. node_modules, .git, build output and
-          the project's own .gitignore are already handled. Anything listed here
-          just stays out of the map.
+          One per line, gitignore style. node_modules, .git, build output and the project's own
+          .gitignore are already handled. Anything listed here just stays out of the map.
         </p>
         <textarea
           id="ignores"

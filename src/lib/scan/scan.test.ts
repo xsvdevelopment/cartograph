@@ -38,10 +38,22 @@ test("language detection", () => {
 });
 
 test("symbol extraction for TS, Python, Go, Rust", () => {
-  assert.ok(extractSymbols("client.ts", HARBOR_FILES["packages/sdk/src/client.ts"]).includes("HarborClient"));
-  assert.ok(extractSymbols("main.py", HARBOR_FILES["services/ingest/src/main.py"]).includes("create_app"));
-  assert.ok(extractSymbols("queue.go", HARBOR_FILES["services/worker/internal/queue/queue.go"]).includes("Listen"));
-  assert.ok(extractSymbols("lib.rs", HARBOR_FILES["crates/hasher/src/lib.rs"]).includes("digest_bytes"));
+  assert.ok(
+    extractSymbols("client.ts", HARBOR_FILES["packages/sdk/src/client.ts"]).includes(
+      "HarborClient",
+    ),
+  );
+  assert.ok(
+    extractSymbols("main.py", HARBOR_FILES["services/ingest/src/main.py"]).includes("create_app"),
+  );
+  assert.ok(
+    extractSymbols("queue.go", HARBOR_FILES["services/worker/internal/queue/queue.go"]).includes(
+      "Listen",
+    ),
+  );
+  assert.ok(
+    extractSymbols("lib.rs", HARBOR_FILES["crates/hasher/src/lib.rs"]).includes("digest_bytes"),
+  );
 });
 
 test("symbol extraction collects class methods, not just class names", () => {
@@ -84,7 +96,10 @@ test("npm and python manifests parse with workspace links", () => {
     { path: "package.json", content: HARBOR_FILES["package.json"] },
     { path: "apps/web/package.json", content: HARBOR_FILES["apps/web/package.json"] },
     { path: "packages/sdk/package.json", content: HARBOR_FILES["packages/sdk/package.json"] },
-    { path: "services/ingest/pyproject.toml", content: HARBOR_FILES["services/ingest/pyproject.toml"] },
+    {
+      path: "services/ingest/pyproject.toml",
+      content: HARBOR_FILES["services/ingest/pyproject.toml"],
+    },
   ]);
   const npmRoot = manifests.find((m) => m.path === "package.json");
   assert.ok(npmRoot?.workspaces?.includes("apps/*"));
@@ -231,7 +246,10 @@ test("loose files don't name the project after the first file", () => {
   const list = [new File(["a"], "index.ts"), new File(["b"], "util.ts")];
   const { rootName, files } = filesFromFileList(list);
   assert.equal(rootName, "project");
-  assert.deepEqual(files.map((f) => f.path), ["index.ts", "util.ts"]);
+  assert.deepEqual(
+    files.map((f) => f.path),
+    ["index.ts", "util.ts"],
+  );
 });
 
 test("a picked folder names the project after the folder", () => {
@@ -245,16 +263,16 @@ test("a picked folder names the project after the folder", () => {
 test("savings are measured against listed source, not node_modules", async () => {
   const files = filesFromRecord(HARBOR_ROOT, HARBOR_FILES);
   const result = await scanProject(HARBOR_ROOT, files, DEFAULT_SCAN_OPTIONS);
-  const listedText = result.files
-    .filter((f) => f.kind === "text")
-    .reduce((n, f) => n + f.size, 0);
+  const listedText = result.files.filter((f) => f.kind === "text").reduce((n, f) => n + f.size, 0);
   assert.equal(result.stats.rawTokens, Math.round(listedText / 3.6));
 });
 
 test("on a project of real size the map is far smaller than the source", async () => {
   const record: Record<string, string> = {};
   for (let i = 0; i < 60; i++) {
-    const body = Array.from({ length: 80 }, (_, j) => `  const v${j} = compute(${j}, input);`).join("\n");
+    const body = Array.from({ length: 80 }, (_, j) => `  const v${j} = compute(${j}, input);`).join(
+      "\n",
+    );
     record[`src/feature${i}/service.ts`] =
       `export function handle${i}(input: number) {\n${body}\n  return input;\n}\n`;
   }
@@ -265,15 +283,38 @@ test("on a project of real size the map is far smaller than the source", async (
 
 test("a dependency table at the very end of the file is still read", () => {
   const [cargo, pipfile, pubspec, poetry] = parseManifests([
-    { path: "a/Cargo.toml", content: '[package]\nname = "a"\n\n[dependencies]\nsha2 = "0.10"\nserde = { version = "1", features = ["derive"] }\n' },
+    {
+      path: "a/Cargo.toml",
+      content:
+        '[package]\nname = "a"\n\n[dependencies]\nsha2 = "0.10"\nserde = { version = "1", features = ["derive"] }\n',
+    },
     { path: "b/Pipfile", content: '[packages]\nrequests = "*"\n\n[dev-packages]\npytest = "*"\n' },
-    { path: "c/pubspec.yaml", content: "name: app\ndependencies:\n  http: ^1.0.0\n  flutter:\n    sdk: flutter\n" },
-    { path: "d/pyproject.toml", content: '[tool.poetry]\nname = "d"\n\n[tool.poetry.dependencies]\npython = "^3.12"\nrich = "^13"\n' },
+    {
+      path: "c/pubspec.yaml",
+      content: "name: app\ndependencies:\n  http: ^1.0.0\n  flutter:\n    sdk: flutter\n",
+    },
+    {
+      path: "d/pyproject.toml",
+      content:
+        '[tool.poetry]\nname = "d"\n\n[tool.poetry.dependencies]\npython = "^3.12"\nrich = "^13"\n',
+    },
   ]);
-  assert.deepEqual(cargo.dependencies.map((d) => `${d.name}@${d.version}`), ["sha2@0.10", "serde@1"]);
-  assert.deepEqual(pipfile.dependencies.map((d) => `${d.name}:${d.kind}`), ["requests:prod", "pytest:dev"]);
-  assert.deepEqual(pubspec.dependencies.map((d) => d.name), ["http", "flutter"]);
-  assert.deepEqual(poetry.dependencies.map((d) => d.name), ["rich"]);
+  assert.deepEqual(
+    cargo.dependencies.map((d) => `${d.name}@${d.version}`),
+    ["sha2@0.10", "serde@1"],
+  );
+  assert.deepEqual(
+    pipfile.dependencies.map((d) => `${d.name}:${d.kind}`),
+    ["requests:prod", "pytest:dev"],
+  );
+  assert.deepEqual(
+    pubspec.dependencies.map((d) => d.name),
+    ["http", "flutter"],
+  );
+  assert.deepEqual(
+    poetry.dependencies.map((d) => d.name),
+    ["rich"],
+  );
 });
 
 test("folders full of images become one line in the tree and index", async () => {
@@ -291,7 +332,7 @@ test("extensionless scripts are read and indexed by their shebang", async () => 
   const files = filesFromRecord("s", {
     "bin/deploy": "#!/usr/bin/env python3\ndef main():\n    pass\n",
     "bin/setup": "#!/bin/bash\nfunction install_deps {\n  :\n}\ncleanup() {\n  :\n}\n",
-    "VERSION": "1.2.3\n",
+    VERSION: "1.2.3\n",
   });
   const result = await scanProject("s", files, DEFAULT_SCAN_OPTIONS);
   const byPath = Object.fromEntries(result.files.map((f) => [f.path, f]));

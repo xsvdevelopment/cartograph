@@ -24,40 +24,28 @@ import {
   savingsPercent,
 } from "./markdown.ts";
 import { mapFileName, renderAgentBrief } from "./agent.ts";
-import type {
-  ListedFile,
-  ProgressFn,
-  ScanOptions,
-  ScanResult,
-  VirtualFile,
-} from "./types.ts";
+import type { ListedFile, ProgressFn, ScanOptions, ScanResult, VirtualFile } from "./types.ts";
 import { DEFAULT_SCAN_OPTIONS } from "./types.ts";
 
 const TEXT_DECODER = new TextDecoder("utf-8", { fatal: false });
 
-export function filesFromRecord(
-  rootName: string,
-  record: Record<string, string>,
-): VirtualFile[] {
+export function filesFromRecord(rootName: string, record: Record<string, string>): VirtualFile[] {
   return Object.entries(record).map(([path, content]) => ({
-    path: path.startsWith(rootName + "/")
-      ? path.slice(rootName.length + 1)
-      : path,
+    path: path.startsWith(rootName + "/") ? path.slice(rootName.length + 1) : path,
     size: new TextEncoder().encode(content).length,
     content,
   }));
 }
 
-export function filesFromFileList(
-  list: ArrayLike<File>,
-): { rootName: string; files: VirtualFile[] } {
+export function filesFromFileList(list: ArrayLike<File>): {
+  rootName: string;
+  files: VirtualFile[];
+} {
   const files: VirtualFile[] = [];
   let rootName = "project";
   for (let i = 0; i < list.length; i++) {
     const file = list[i];
-    const rel =
-      (file as File & { webkitRelativePath?: string }).webkitRelativePath ||
-      file.name;
+    const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
     const { root, rest } = stripRootPrefix(rel);
     // Loose files have no folder, so they must not name the project.
     if (i === 0 && root && rest) rootName = root;
@@ -91,8 +79,7 @@ export async function filesFromZip(
     // that still holds node_modules costs almost nothing.
     files.push({
       path,
-      size:
-        (entry as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0,
+      size: (entry as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0,
       load: () => entry.async("blob"),
     });
   }
@@ -123,11 +110,7 @@ export async function scanProject(
 
   const fromGit = collectGitignorePatterns(gitignoreFiles);
   const ignore = buildIgnoreSet(
-    [
-      ...options.extraIgnores,
-      ...fromGit.root,
-      ...flattenUserIgnores(options.extraIgnores),
-    ],
+    [...options.extraIgnores, ...fromGit.root, ...flattenUserIgnores(options.extraIgnores)],
     fromGit.scoped,
   );
   const dirIgnore: IgnoreSet = { ...ignore, extra: [] };
@@ -176,14 +159,15 @@ export async function scanProject(
           const lang = languageOf(f.path);
           // Files with no extension are often scripts (`#!/usr/bin/env python3`),
           // so read them and let the first line say what they are.
-          return isProbablyText(f.path, lang) || isManifestPath(f.path) || lang === "Other" && !extname(f.path);
+          return (
+            isProbablyText(f.path, lang) ||
+            isManifestPath(f.path) ||
+            (lang === "Other" && !extname(f.path))
+          );
         });
 
   // Manifests and READMEs first, so the read cap never costs the dependency tree.
-  const toRead = [
-    ...alwaysRead,
-    ...needContent.filter((f) => !alwaysRead.includes(f)),
-  ]
+  const toRead = [...alwaysRead, ...needContent.filter((f) => !alwaysRead.includes(f))]
     .filter((f) => f.content == null && (f.blob || f.load))
     .slice(0, options.maxReadFiles);
 
@@ -196,10 +180,7 @@ export async function scanProject(
   let secretFiles = 0;
   let listedBytes = 0;
   let totalLines = 0;
-  const langMap = new Map<
-    string,
-    { files: number; bytes: number; lines: number }
-  >();
+  const langMap = new Map<string, { files: number; bytes: number; lines: number }>();
 
   for (let i = 0; i < candidates.length; i++) {
     const file = candidates[i];

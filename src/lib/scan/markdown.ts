@@ -8,11 +8,7 @@ import {
   renderTreeCompact,
 } from "./tree.ts";
 import { estimateTokens, estimateTokensFromBytes, savingsPercent } from "./tokens.ts";
-import {
-  directoryHints,
-  standingOrdersCompact,
-  standingOrdersMarkdown,
-} from "./agent.ts";
+import { directoryHints, standingOrdersCompact, standingOrdersMarkdown } from "./agent.ts";
 import type { ScanResult } from "./types.ts";
 
 function formatCompact(n: number): string {
@@ -27,10 +23,7 @@ const PREAMBLE = `A map of this project made by Cartograph. Coding agents (Claud
 Codex, Aider) should search this file before listing the repository. Secrets,
 lockfiles, binaries and ignored folders are named here but were never opened.`;
 
-type MarkdownInput = Omit<
-  ScanResult,
-  "markdown" | "stats" | "agentBrief" | "mapFileName"
-> & {
+type MarkdownInput = Omit<ScanResult, "markdown" | "stats" | "agentBrief" | "mapFileName"> & {
   stats: Omit<ScanResult["stats"], "mapTokens" | "savingsPct"> & {
     mapTokens?: number;
     savingsPct?: number;
@@ -104,9 +97,7 @@ function renderFull(result: MarkdownInput): string {
   sections.push("| Language | Files | Lines | Bytes |");
   sections.push("|---|---:|---:|---:|");
   for (const lang of result.languages) {
-    sections.push(
-      `| ${lang.language} | ${lang.files} | ${lang.lines} | ${fmtBytes(lang.bytes)} |`,
-    );
+    sections.push(`| ${lang.language} | ${lang.files} | ${lang.lines} | ${fmtBytes(lang.bytes)} |`);
   }
   sections.push("");
 
@@ -148,12 +139,7 @@ function renderFull(result: MarkdownInput): string {
       continue;
     }
     if (f.kind === "skipped") continue;
-    const bits = [
-      f.path,
-      f.language,
-      f.lines != null ? String(f.lines) : "-",
-      roleOf(f.path),
-    ];
+    const bits = [f.path, f.language, f.lines != null ? String(f.lines) : "-", roleOf(f.path)];
     if (f.kind === "secret") bits.push("SECRET omitted");
     else if (f.kind === "lock") bits.push("lockfile summarized");
     else if (f.kind === "binary") bits.push("binary");
@@ -203,10 +189,7 @@ function renderCompact(result: MarkdownInput): string {
     `size ${fmtBytes(s.listedBytes)}/${fmtBytes(s.totalBytes)} · raw≈${formatCompact(s.rawTokens)} tok`,
   );
   lines.push(
-    "lang " +
-      result.languages
-        .map((l) => `${shortLang(l.language)}:${l.files}`)
-        .join(" "),
+    "lang " + result.languages.map((l) => `${shortLang(l.language)}:${l.files}`).join(" "),
   );
   lines.push("");
   lines.push(standingOrdersCompact(result.rootName));
@@ -239,9 +222,7 @@ function renderCompact(result: MarkdownInput): string {
     }
   }
   if (result.workspaceLinks.length) {
-    lines.push(
-      "WS " + result.workspaceLinks.map((l) => `${l.from}->${l.to}`).join(" "),
-    );
+    lines.push("WS " + result.workspaceLinks.map((l) => `${l.from}->${l.to}`).join(" "));
   }
   lines.push("");
   lines.push("INDEX");

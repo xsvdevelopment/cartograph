@@ -32,9 +32,7 @@ export function isManifestPath(path: string): boolean {
   return base.endsWith(".csproj") || base.endsWith(".fsproj");
 }
 
-export function parseManifests(
-  files: { path: string; content?: string }[],
-): DepManifest[] {
+export function parseManifests(files: { path: string; content?: string }[]): DepManifest[] {
   const out: DepManifest[] = [];
   for (const file of files) {
     if (!file.content || !isManifestPath(file.path)) continue;
@@ -121,9 +119,7 @@ function parsePackageJson(path: string, content: string): DepManifest {
   push(json.optionalDependencies, "optional");
   push(json.peerDependencies, "peer");
   push(json.devDependencies, "dev");
-  const workspaces = Array.isArray(json.workspaces)
-    ? json.workspaces
-    : json.workspaces?.packages;
+  const workspaces = Array.isArray(json.workspaces) ? json.workspaces : json.workspaces?.packages;
   return {
     path,
     ecosystem: "npm",
@@ -155,12 +151,9 @@ function parsePnpmWorkspace(path: string, content: string): DepManifest {
 }
 
 function parsePyproject(path: string, content: string): DepManifest {
-  const name =
-    matchTomlString(content, "name") ??
-    sectionKv(content, "tool.poetry", "name");
+  const name = matchTomlString(content, "name") ?? sectionKv(content, "tool.poetry", "name");
   const version =
-    matchTomlString(content, "version") ??
-    sectionKv(content, "tool.poetry", "version");
+    matchTomlString(content, "version") ?? sectionKv(content, "tool.poetry", "version");
   const dependencies: DepNode[] = [];
 
   const projectDeps = tomlArray(content, "dependencies");
@@ -349,8 +342,7 @@ function parseMix(path: string, content: string): DepManifest {
 
 function parseCsproj(path: string, content: string): DepManifest {
   const dependencies: DepNode[] = [];
-  const re =
-    /<PackageReference\s+Include="([^"]+)"(?:\s+Version="([^"]+)")?/g;
+  const re = /<PackageReference\s+Include="([^"]+)"(?:\s+Version="([^"]+)")?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     dependencies.push(dep(m[1], m[2] ?? "*", "prod"));
@@ -385,9 +377,7 @@ function sectionKv(content: string, section: string, key: string): string | null
 }
 
 function tomlArray(content: string, key: string): string[] {
-  const inline = content.match(
-    new RegExp(`${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`),
-  );
+  const inline = content.match(new RegExp(`${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`));
   if (!inline) return [];
   return [...inline[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
 }
@@ -482,14 +472,10 @@ function shortVer(v: string): string {
   return v.replace(/^workspace:/, "ws:").replace(/^file:/, "file:");
 }
 
-export function renderMermaidGraph(
-  manifests: DepManifest[],
-  links: WorkspaceLink[],
-): string {
+export function renderMermaidGraph(manifests: DepManifest[], links: WorkspaceLink[]): string {
   const pkgNodes = manifests.filter((m) => m.name);
   if (!pkgNodes.length && !links.length) return "";
-  const id = (name: string) =>
-    "n_" + name.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 40);
+  const id = (name: string) => "n_" + name.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 40);
   const lines = ["graph LR"];
   const seen = new Set<string>();
   for (const m of pkgNodes) {

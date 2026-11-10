@@ -42,9 +42,8 @@ export function ResultPanel() {
             A map instead of a dump.
           </h2>
           <p className="mt-3 max-w-md text-sm text-muted-foreground">
-            Load a folder, a zip or the sample project. The markdown tells
-            Claude Code and other agents to search the map first, then open
-            the one file they need.
+            Load a folder, a zip or the sample project. The markdown tells Claude Code and other
+            agents to search the map first, then open the one file they need.
           </p>
         </div>
         <ul className="mt-8 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
@@ -75,9 +74,7 @@ export function ResultPanel() {
             <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
               {sourceLabel}
             </p>
-            <h2 className="mt-1 font-display text-3xl tracking-[-0.03em]">
-              {result.rootName}
-            </h2>
+            <h2 className="mt-1 font-display text-3xl tracking-[-0.03em]">{result.rootName}</h2>
           </div>
           <Badge variant="safe">Read only</Badge>
         </div>
@@ -100,15 +97,16 @@ export function ResultPanel() {
             hint="if you pasted every listed file"
           />
           <Stat label="Listed files" value={formatCount(s.listedFiles)} />
-          <Stat label="Skipped" value={formatCount(s.omittedFiles)} hint="node_modules, builds, ignored" />
+          <Stat
+            label="Skipped"
+            value={formatCount(s.omittedFiles)}
+            hint="node_modules, builds, ignored"
+          />
         </dl>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <CopyButton
-          label="Copy map for agents"
-          text={AI_WRAP + result.markdown}
-        />
+        <CopyButton label="Copy map for agents" text={AI_WRAP + result.markdown} />
         <CopyButton label="Copy CLAUDE.md rule" text={result.agentBrief} />
         <Button
           type="button"
@@ -143,10 +141,9 @@ export function ResultPanel() {
             <div className="flex flex-col gap-4">
               <p className="text-sm text-muted-foreground">
                 Paste this into <span className="text-foreground">CLAUDE.md</span>,{" "}
-                <span className="text-foreground">AGENTS.md</span> or a Cursor
-                rule. In the desktop app, Add to CLAUDE.md adds it to the end of
-                the file and leaves everything already there alone. Once it is
-                in, Claude Code reads the map before it goes digging.
+                <span className="text-foreground">AGENTS.md</span> or a Cursor rule. In the desktop
+                app, Add to CLAUDE.md adds it to the end of the file and leaves everything already
+                there alone. Once it is in, Claude Code reads the map before it goes digging.
               </p>
               <ScrollArea className="h-[min(420px,50vh)] max-w-full rounded-md bg-background shadow-[var(--shadow-border)]">
                 <pre className="max-w-full p-4 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">
@@ -175,9 +172,7 @@ export function ResultPanel() {
                   {result.workspaceLinks.length > 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Internal:{" "}
-                      {result.workspaceLinks
-                        .map((l) => `${l.from} → ${l.to}`)
-                        .join(" · ")}
+                      {result.workspaceLinks.map((l) => `${l.from} → ${l.to}`).join(" · ")}
                     </p>
                   ) : null}
                   {result.manifests.map((m) => (
@@ -202,24 +197,14 @@ export function ResultPanel() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
       <dt className="text-xs tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-display text-2xl tabular leading-none tracking-[-0.03em]">
         {value}
       </dd>
-      {hint ? (
-        <p className="mt-1 text-xs tabular text-muted-foreground">{hint}</p>
-      ) : null}
+      {hint ? <p className="mt-1 text-xs tabular text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

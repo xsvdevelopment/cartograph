@@ -93,9 +93,7 @@ export function buildTree(
   const ensureDir = (dirPath: string): TreeNode => {
     const existing = dirMap.get(dirPath);
     if (existing) return existing;
-    const parentPath = dirPath.includes("/")
-      ? dirPath.slice(0, dirPath.lastIndexOf("/"))
-      : "";
+    const parentPath = dirPath.includes("/") ? dirPath.slice(0, dirPath.lastIndexOf("/")) : "";
     const parent = ensureDir(parentPath);
     const node: TreeNode = {
       name: basename(dirPath) || dirPath,
@@ -140,9 +138,7 @@ export function buildTree(
       : "";
     const parent = ensureDir(parentPath);
     parent.children = parent.children ?? [];
-    const already = parent.children.some(
-      (c) => c.path === omitted.path && c.omitted,
-    );
+    const already = parent.children.some((c) => c.path === omitted.path && c.omitted);
     if (already) continue;
     parent.children.push({
       name: basename(omitted.path),
@@ -216,18 +212,13 @@ function compactWalk(node: TreeNode, indent: string, lines: string[]) {
   }
   for (const dir of dirs) {
     if (dir.omitted) {
-      lines.push(
-        `${indent}${dir.name}/ [omitted ${dir.omittedCount ?? 0}]`,
-      );
+      lines.push(`${indent}${dir.name}/ [omitted ${dir.omittedCount ?? 0}]`);
       continue;
     }
     const dirKids = dir.children ?? [];
-    const onlyFiles =
-      dirKids.length > 0 && dirKids.every((c) => c.type === "file");
+    const onlyFiles = dirKids.length > 0 && dirKids.every((c) => c.type === "file");
     if (onlyFiles && dirKids.length <= 6) {
-      lines.push(
-        `${indent}${dir.name}/ ${dirKids.map((c) => c.name).join(" ")}`,
-      );
+      lines.push(`${indent}${dir.name}/ ${dirKids.map((c) => c.name).join(" ")}`);
     } else {
       lines.push(`${indent}${dir.name}/`);
       compactWalk(dir, indent + "  ", lines);

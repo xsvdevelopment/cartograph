@@ -29,9 +29,9 @@ export function AppShell() {
               </h1>
             </div>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Scan a project and get one markdown file with its folders,
-              dependencies and code symbols. Point your agent at it and it reads
-              the map instead of listing every folder on every task.
+              Scan a project and get one markdown file with its folders, dependencies and code
+              symbols. Point your agent at it and it reads the map instead of listing every folder
+              on every task.
             </p>
           </div>
         </header>
@@ -42,17 +42,16 @@ export function AppShell() {
         </main>
 
         <footer className="mx-auto max-w-6xl px-4 pb-10 text-xs text-muted-foreground sm:px-6">
-          Everything runs on this machine. Cartograph never uploads your code,
-          never runs it and never edits it. The only files it writes are the map
-          you save and, when you ask, one rule added to the end of a CLAUDE.md.
+          Everything runs on this machine. Cartograph never uploads your code, never runs it and
+          never edits it. The only files it writes are the map you save and, when you ask, one rule
+          added to the end of a CLAUDE.md.
         </footer>
       </div>
       <Toaster
         theme="dark"
         position="bottom-center"
         toastOptions={{
-          className:
-            "!bg-card !text-foreground !shadow-[var(--shadow-border)] !border-0",
+          className: "!bg-card !text-foreground !shadow-[var(--shadow-border)] !border-0",
         }}
       />
     </TooltipProvider>

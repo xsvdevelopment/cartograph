@@ -2,7 +2,8 @@
 
 @theme {
   --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Newsreader Variable", "Newsreader", "Iowan Old Style", "Palatino Linotype", serif;
+  --font-display:
+    "Newsreader Variable", "Newsreader", "Iowan Old Style", "Palatino Linotype", serif;
   --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 
   --color-background: #0e0f0d;

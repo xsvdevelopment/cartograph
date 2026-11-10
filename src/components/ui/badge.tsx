@@ -22,7 +22,5 @@ export function Badge({
   variant,
   ...props
 }: ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
-  return (
-    <span className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }

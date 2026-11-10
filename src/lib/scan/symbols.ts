@@ -3,7 +3,12 @@ import { extname } from "./ignore.ts";
 const MAX_SYMBOLS = 300;
 
 /** Extension to use for a file with none, going by the language its `#!` line named. */
-const SCRIPT_EXT: Record<string, string> = { Python: "py", JavaScript: "js", Ruby: "rb", Shell: "sh" };
+const SCRIPT_EXT: Record<string, string> = {
+  Python: "py",
+  JavaScript: "js",
+  Ruby: "rb",
+  Shell: "sh",
+};
 
 export function extractSymbols(path: string, content: string, language?: string): string[] {
   const lang = extname(path) || SCRIPT_EXT[language ?? ""] || "";
@@ -108,7 +113,8 @@ function jsClassMembers(src: string): string[] {
 
 function jsSymbols(src: string): string[] {
   const found: string[] = [];
-  const exportBlock = /export\s+(?:default\s+)?(?:async\s+)?(?:function\*?|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/g;
+  const exportBlock =
+    /export\s+(?:default\s+)?(?:async\s+)?(?:function\*?|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/g;
   const exportList = /export\s+(?:type\s+)?\{([^}]+)\}/g;
   const exportStarAs = /export\s+\*\s+as\s+([A-Za-z_$][\w$]*)/g;
   const namedFn = /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm;
@@ -195,7 +201,8 @@ function rustSymbols(src: string): string[] {
     if (openIdx === -1) continue;
     const body = extractBalanced(src, openIdx);
     if (!body) continue;
-    const fnRe = /^[ \t]*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_][\w]*)/gm;
+    const fnRe =
+      /^[ \t]*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_][\w]*)/gm;
     let mm: RegExpExecArray | null;
     while ((mm = fnRe.exec(body))) found.push(`${typeName}.${mm[1]}`);
   }

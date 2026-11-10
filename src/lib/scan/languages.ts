@@ -100,7 +100,7 @@ const BASENAME_LANG: Record<string, string> = {
   gemfile: "Ruby",
   rakefile: "Ruby",
   podfile: "Ruby",
-  "vagrantfile": "Ruby",
+  vagrantfile: "Ruby",
   procfile: "Procfile",
   brewfile: "Ruby",
   "cargo.toml": "TOML",
@@ -145,7 +145,7 @@ export function shebangLanguage(content: string | undefined): string | undefined
   return SHEBANG_LANG.find(([re]) => re.test(line))?.[1] ?? "Shell";
 }
 
-const TEXT_BASENAMES =new Set(["license", "copying", "authors", "changelog", "notice", "readme"]);
+const TEXT_BASENAMES = new Set(["license", "copying", "authors", "changelog", "notice", "readme"]);
 
 export function isProbablyText(path: string, language: string): boolean {
   if (language === "Image" || language === "3D model") return false;
@@ -173,7 +173,18 @@ export function isProbablyText(path: string, language: string): boolean {
   return true;
 }
 
-const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "heic"]);
+const IMAGE_EXT = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "bmp",
+  "tif",
+  "tiff",
+  "avif",
+  "heic",
+]);
 const MODEL_EXT = new Set(["glb", "fbx", "blend", "stl", "3ds", "dae", "usdz", "vox"]);
 
 export function roleOf(path: string): string {
@@ -185,10 +196,7 @@ export function roleOf(path: string): string {
   // Prose is docs wherever it sits; a design doc in specs/ is not a test.
   if (/\.(md|mdx|rst|adoc)$/.test(base)) return "docs";
   if (!base.slice(1).includes(".") && base.startsWith(".")) return "config";
-  if (
-    /(^|\/)(test|tests|__tests__|spec|specs)\//.test(p) ||
-    /\.(test|spec)\./.test(base)
-  ) {
+  if (/(^|\/)(test|tests|__tests__|spec|specs)\//.test(p) || /\.(test|spec)\./.test(base)) {
     return "test";
   }
   if (/(^|\/)(stories|__stories__)\//.test(p) || /\.stories\./.test(base)) {
@@ -212,7 +220,12 @@ export function roleOf(path: string): string {
   ) {
     return "manifest";
   }
-  if (base.endsWith("lock") || base.endsWith("lock.json") || base.endsWith("lock.yaml") || base.endsWith("lockb")) {
+  if (
+    base.endsWith("lock") ||
+    base.endsWith("lock.json") ||
+    base.endsWith("lock.yaml") ||
+    base.endsWith("lockb")
+  ) {
     return "lockfile";
   }
   if (/(^|\/)(migrations?)\//.test(p)) return "migration";

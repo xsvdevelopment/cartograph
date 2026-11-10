@@ -31,11 +31,7 @@ export type VirtualFile = {
   load?: () => Promise<Blob>;
 };
 
-export type ProgressFn = (progress: {
-  phase: string;
-  done: number;
-  total: number;
-}) => void;
+export type ProgressFn = (progress: { phase: string; done: number; total: number }) => void;
 
 export type ListedFile = {
   path: string;

@@ -12,7 +12,7 @@ Nothing in this sample is real infrastructure. It exists so Cartograph can
 show a directory tree, a multi-ecosystem dependency graph, and a compact
 symbol index without opening a private repo.
 `,
-  "LICENSE": "MIT License\n\nCopyright (c) 2026 Harbor\n",
+  LICENSE: "MIT License\n\nCopyright (c) 2026 Harbor\n",
   ".gitignore": `node_modules
 dist
 build
@@ -295,4 +295,3 @@ HARBOR_TOKEN=
   "dist/web.js": `${"/* bundled */\n".repeat(400)}`,
   ".git/config": "[core]\n\trepositoryformatversion = 0\n",
 };
-

@@ -94,9 +94,7 @@ const ROLE_NEED: Record<string, string> = {
   source: "source",
 };
 
-export function directoryHints(
-  files: ListedFile[],
-): { need: string; path: string }[] {
+export function directoryHints(files: ListedFile[]): { need: string; path: string }[] {
   const dirs = new Map<string, Map<string, number>>();
   for (const f of files) {
     if (f.kind === "skipped") continue;

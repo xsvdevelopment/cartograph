@@ -172,10 +172,7 @@ export type IgnoreSet = {
   scoped: ScopedIgnore[];
 };
 
-export function buildIgnoreSet(
-  extra: string[] = [],
-  scoped: ScopedIgnore[] = [],
-): IgnoreSet {
+export function buildIgnoreSet(extra: string[] = [], scoped: ScopedIgnore[] = []): IgnoreSet {
   const dirs = new Set(IGNORED_DIR_NAMES);
   const extraPatterns: string[] = [];
   for (const raw of extra) {
